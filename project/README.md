@@ -349,8 +349,16 @@ Extrae contenido HTML de una URL específica.
 openapi: 3.0.0
 info:
   title: InternetWhisper API
-  description: RAG-powered chatbot with real-time web search capabilities
+  description: |
+    RAG-powered chatbot with real-time web search capabilities.
+    
+    InternetWhisper combines intelligent web search with advanced AI text generation,
+    providing real-time answers based on fresh internet content through a complete
+    Retrieval-Augmented Generation (RAG) pipeline.
   version: 1.0.0
+  contact:
+    name: InternetWhisper Support
+    email: support@internetwhisper.com
   license:
     name: MIT
     url: https://opensource.org/licenses/MIT
@@ -358,76 +366,347 @@ info:
 servers:
   - url: http://localhost:8000
     description: Local development server
+  - url: http://orchestrator
+    description: Docker Compose internal network
+
+tags:
+  - name: Search
+    description: Main RAG search and generation endpoints
+  - name: Scraper
+    description: Web content extraction service
 
 paths:
   /streamingSearch:
     get:
-      summary: Stream search and generation response
+      tags: [Search]
+      summary: Stream RAG search and generation response
       description: |
-        Processes a user query through the complete RAG pipeline:
-        1. Searches vector cache for similar content
-        2. If insufficient, performs web search
-        3. Scrapes and processes web content  
-        4. Generates embeddings and stores in cache
-        5. Builds context and streams LLM response
+        Processes a user query through the complete RAG pipeline with real-time streaming:
+        
+        **Pipeline Flow:**
+        1. 🔍 **Vector Cache Check**: Searches for similar cached content (threshold: 0.85)
+        2. 🌐 **Web Search**: If cache insufficient, performs Google Custom Search
+        3. 🕷️ **Content Scraping**: Extracts text from relevant web pages
+        4. ✂️ **Text Chunking**: Segments content using LangChain or AdjSen splitters
+        5. 🧠 **Embeddings Generation**: Creates vector representations with OpenAI
+        6. 💾 **Vector Storage**: Stores in Redis with similarity indexing
+        7. 🤖 **Context Building**: Assembles relevant context for LLM
+        8. ⚡ **Streaming Generation**: Generates response with GPT-3.5-turbo
+        
+        **Event Stream Format**: Server-Sent Events (SSE) with structured event types
+      operationId: streamingSearch
       parameters:
         - name: query
           in: query
           required: true
           schema:
             type: string
-            example: "What are the latest trends in artificial intelligence?"
-          description: User's search query
+            minLength: 1
+            maxLength: 500
+            example: "What are the latest trends in artificial intelligence and machine learning?"
+          description: |
+            User's search query. Will be processed through the RAG pipeline to find
+            relevant web content and generate a comprehensive response.
       responses:
         '200':
-          description: Successful streaming response
+          description: |
+            Successful streaming response using Server-Sent Events (SSE).
+            Multiple event types are streamed in sequence during the RAG pipeline execution.
           content:
             text/event-stream:
               schema:
                 type: string
-                description: Server-Sent Events stream
+                description: |
+                  Server-Sent Events stream with different event types:
+                  - `search`: Google search results with URLs and metadata
+                  - `context`: Extracted and processed text context
+                  - `prompt`: Final prompt sent to LLM
+                  - `token`: Individual response tokens (streaming generation)
               examples:
                 search_event:
-                  summary: Search results event
+                  summary: Search results from Google Custom Search
                   value: |
                     event: search
-                    data: {"items":[{"link":"https://example.com","title":"AI Trends"}]}
+                    data: {"items":[{"link":"https://example.com/ai-trends","title":"Latest AI Trends 2024","snippet":"Comprehensive overview of AI developments...","displayLink":"example.com"}]}
                 
                 context_event:
-                  summary: Retrieved context
+                  summary: Processed and concatenated text context
                   value: |
-                    event: context  
-                    data: Artificial intelligence trends include...
+                    event: context
+                    data: "Artificial intelligence trends for 2024 include generative AI adoption, multimodal systems, and responsible AI practices. Large language models continue to evolve..."
+                
+                prompt_event:
+                  summary: Final RAG prompt with context
+                  value: |
+                    event: prompt
+                    data: "Use the following pieces of context to answer the question at the end. Please be informative, try to give extended responses...\n\nContext: [context content]\n\nQuestion: What are the latest trends in AI?"
                 
                 token_event:
-                  summary: Generated token
+                  summary: Streaming response tokens
                   value: |
                     event: token
-                    data: Based
+                    data: "Based"
+        
+        '400':
+          description: Invalid query parameter
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: "Query parameter is required and cannot be empty"
+                code: "INVALID_QUERY"
+        
+        '500':
+          description: Internal server error during RAG pipeline
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: "Failed to process query through RAG pipeline"
+                code: "PIPELINE_ERROR"
+
+  /scrape:
+    post:
+      tags: [Scraper]
+      summary: Extract HTML content from URL
+      description: |
+        Extracts raw HTML content from a given URL using Playwright browser automation.
+        Handles JavaScript-rendered content and includes timeout protection.
+        
+        **Features:**
+        - Firefox headless browser automation
+        - JavaScript execution support
+        - 2-second timeout protection
+        - Error handling for slow/unresponsive pages
+      operationId: scrapeUrl
+      parameters:
+        - name: url
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uri
+            example: "https://example.com/article"
+          description: Target URL to scrape content from
+      responses:
+        '200':
+          description: Successfully extracted HTML content
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScrapeResponse'
+              example:
+                html: "<html><head><title>Example</title></head><body>Content...</body></html>"
+        
+        '408':
+          description: Request timeout - page took too long to load
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: "Not fast enough"
+                code: "TIMEOUT_ERROR"
+        
+        '500':
+          description: Scraping error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: "Failed to scrape URL"
+                code: "SCRAPE_ERROR"
 
 components:
   schemas:
     SearchResult:
       type: object
+      description: Container for Google Custom Search results
+      required:
+        - items
       properties:
         items:
           type: array
+          description: Array of search result documents
           items:
             $ref: '#/components/schemas/SearchDoc'
+          minItems: 0
+          maxItems: 10
     
     SearchDoc:
       type: object
+      description: Individual search result from Google Custom Search API
+      required:
+        - link
       properties:
         link:
           type: string
           format: uri
+          description: URL of the search result
+          example: "https://example.com/ai-article"
         title:
           type: string
-        snippet:
-          type: string
+          description: Page title from search results
+          example: "Latest AI Trends and Developments"
         displayLink:
           type: string
+          description: Display-friendly domain name
+          example: "example.com"
+        snippet:
+          type: string
+          description: Search result snippet/description
+          example: "Comprehensive overview of the latest developments in artificial intelligence..."
+        pagemap:
+          $ref: '#/components/schemas/PageMap'
+    
+    PageMap:
+      type: object
+      description: Additional metadata from Google Custom Search
+      properties:
+        cse_thumbnail:
+          type: array
+          description: Thumbnail images associated with the page
+          items:
+            $ref: '#/components/schemas/CSEThumbnail'
+    
+    CSEThumbnail:
+      type: object
+      description: Thumbnail image metadata
+      required:
+        - src
+        - width
+        - height
+      properties:
+        src:
+          type: string
+          format: uri
+          description: Thumbnail image URL
+          example: "https://encrypted-tbn0.gstatic.com/images?q=tbn:..."
+        width:
+          type: string
+          description: Image width in pixels
+          example: "300"
+        height:
+          type: string
+          description: Image height in pixels
+          example: "200"
+    
+    Document:
+      type: object
+      description: Processed document with vector embeddings for RAG
+      required:
+        - text
+        - url
+        - vector
+        - similarity
+      properties:
+        text:
+          type: string
+          description: Processed text content chunk
+          example: "Artificial intelligence has seen rapid advancement in 2024..."
+        url:
+          type: string
+          format: uri
+          description: Source URL of the content
+          example: "https://example.com/ai-article"
+        vector:
+          type: array
+          description: OpenAI text-embedding-ada-002 vector (1536 dimensions)
+          items:
+            type: number
+            format: float
+          minItems: 1536
+          maxItems: 1536
+        similarity:
+          type: number
+          format: float
+          minimum: -1
+          maximum: 1
+          description: Cosine similarity score to query (1 = identical, 0 = orthogonal, -1 = opposite)
+          example: 0.87
+    
+    ScrapeResponse:
+      type: object
+      description: Response from web scraping operation
+      required:
+        - html
+      properties:
+        html:
+          type: string
+          description: Raw HTML content extracted from the target URL
+          example: "<html><head><title>Page Title</title></head><body>Content...</body></html>"
+    
+    Error:
+      type: object
+      description: Standard error response format
+      required:
+        - error
+        - code
+      properties:
+        error:
+          type: string
+          description: Human-readable error message
+          example: "Query parameter is required"
+        code:
+          type: string
+          description: Machine-readable error code
+          example: "INVALID_QUERY"
+        details:
+          type: object
+          description: Additional error context (optional)
+          additionalProperties: true
 
+  parameters:
+    QueryParam:
+      name: query
+      in: query
+      required: true
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 500
+      description: User search query for RAG processing
+    
+    UrlParam:
+      name: url
+      in: query
+      required: true
+      schema:
+        type: string
+        format: uri
+      description: Target URL for content extraction
+
+  examples:
+    AITrendsQuery:
+      summary: AI trends research query
+      value: "What are the latest trends in artificial intelligence and machine learning for 2024?"
+    
+    TechnicalQuery:
+      summary: Technical deep-dive query  
+      value: "How does the transformer attention mechanism work in modern language models?"
+    
+    MarketResearchQuery:
+      summary: Market analysis query
+      value: "Which companies are leading autonomous vehicle development in 2024?"
+
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: Optional API key for rate limiting and usage tracking
+
+security:
+  - ApiKeyAuth: []
+  - {} # Allow anonymous access
+
+externalDocs:
+  description: InternetWhisper Documentation
+  url: https://github.com/your-org/internetwhisper/blob/main/README.md
+````
 ---
 
 ## 💬 Ejemplos de Uso
