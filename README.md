@@ -3,8 +3,6 @@
 
 ---
 
-![Copilot-Documentation](https://github.com/santiagomorillosegovia/InternetWhisper/assets/28943730/26840b24-92d3-4ddf-bbd1-82cc6b992c7f)
-
 ## Contexto del Desafío  
 “InternetWhisper” es un chatbot de IA avanzado capaz de buscar, procesar y responder con información en tiempo real desde Internet. No es un asistente virtual genérico: está diseñado para integrarse con fuentes online y proveer resultados dinámicos. Como participantes de este reto, usaréis **GitHub Copilot** para entender su arquitectura y documentar cada parte de forma profesional y accesible.
 
@@ -25,7 +23,7 @@ El objetivo de este ejercicio es:
 ---
 
 ## Entregable Final  
-Deberás entregar un **README** generado con la asistencia de **GitHub Copilot**, que incluya:
+Deberás entregar un **README** (dentro del directorio 'project') generado con la asistencia de **GitHub Copilot**, que incluya:
 
 1. **Descripción del Proyecto**  
 2. **Explicación Técnica**  
