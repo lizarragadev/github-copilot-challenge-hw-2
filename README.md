@@ -1,4 +1,3 @@
-```markdown
 # Desafío: Documentación de “InternetWhisper” con GitHub Copilot 🤖📄
 
 ---
@@ -68,5 +67,4 @@ Deberás entregar un **README** (dentro del directorio 'project') generado con l
 
 ---
 
-¡Manos a la obra! 🚀  
-```
+¡Manos a la obra! 🚀
