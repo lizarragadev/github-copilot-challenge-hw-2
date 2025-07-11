@@ -3,7 +3,7 @@
 ---
 
 ## Contexto del Desafío  
-“InternetWhisper” es un chatbot de IA avanzado capaz de buscar, procesar y responder con información en tiempo real desde Internet. No es un asistente virtual genérico: está diseñado para integrarse con fuentes online y proveer resultados dinámicos. Como participantes de este reto, usaréis **GitHub Copilot** para entender su arquitectura y documentar cada parte de forma profesional y accesible.
+“InternetWhisper” es un chatbot de IA avanzado capaz de buscar, procesar y responder con información en tiempo real desde Internet. No es un asistente virtual genérico: está diseñado para integrarse con fuentes online y proveer resultados dinámicos. Como participantes de este reto, usarás **GitHub Copilot** para entender su arquitectura y documentar cada parte de forma profesional y accesible.
 
 ---
 
@@ -59,11 +59,6 @@ Deberás entregar un **README** (dentro del directorio 'project') generado con l
    - Refina con comandos de barra diagonal (`/fix`, `/tests`) según necesites.  
 4. **Revisa** todas las sugerencias: acepta, ajusta o descarta para garantizar precisión técnica.  
 5. **Entrega** el README final, incluyendo fragmentos de Copilot comentados si lo crees conveniente (p. ej. “Sugerencia Copilot:”).
-
----
-
-## Hint  
-> Hemos dejado en el **workspace settings** del challenge un comando personalizado de GitHub Copilot que te puede dar un empujón inicial. ¡Pruébalo con `Copilot: Generate Project README`!
 
 ---
 
